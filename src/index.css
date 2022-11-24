@@ -1,13 +1,69 @@
-body {
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Lobster&display=swap');
+
+
+*{
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+@apply bg-[#05030e] text-cyan-50 w-screen h-screen flex justify-center items-center flex-col overflow-hidden
+
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+body {
+  font-family: 'Josefin Sans', sans-serif;
+  font-style: italic;
+  font-weight: 700;
+}
+
+.section {
+  @apply w-full h-full flex items-center flex-col justify-center
+}
+
+.button {
+  @apply h-[50px] w-[80px] p-[30] pl-5 pr-5 mt-1 mb-1 rounded-lg cursor-pointer transition-all text-base w-fit self-center bg-[#d000ff] mt-5 mb-5 duration-500 hover:scale-y-110 hover:bg-[blue] cursor-pointer
+}
+.App-body{
+  @apply h-screen w-screen 
+}
+
+.header {
+  @apply w-full h-16 flex items-center justify-around p-5 drop-shadow-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500
+}
+
+input {
+  @apply w-fit h-[2.5rem] shadow-xl rounded-full bg-transparent outline-none border-[#fff] text-[#fff] border-2 p-4
+}
+
+.logo {
+  font-family: 'Lobster', cursive;
+  font-size: 2rem;
+}
+
+.set-params {
+  @apply flex flex-col w-full items-center mt-[5rem]
+}
+.form {
+  @apply  flex border-2 h-fit pr-10 pl-10 pt-4 items-center rounded-2xl
+}
+
+.sect {
+  @apply m-5 flex-col flex
+}
+
+.img {
+  @apply h-[200px]
+}
+
+.submit {
+  @apply mb-0
+}
+
+label {
+  @apply mb-2
 }

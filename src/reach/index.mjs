@@ -1,36 +1,76 @@
-import * as backend from "./build/index.main.mjs";
 import { loadStdlib } from "@reach-sh/stdlib";
+import * as backend from "./build/index.main.mjs";
 const stdlib = loadStdlib({ REACH_NO_WARN: "Y" });
 
 const startingBalance = stdlib.parseCurrency(100);
 
-console.log(`Creating a test account for Owner`);
-const accOwner = await stdlib.newTestAccount(startingBalance);
+console.log("Creating a test account for Alice");
+const accAlice = await stdlib.newTestAccount(startingBalance);
+const accBob = await stdlib.newTestAccount(startingBalance);
+const fmt = (x) => stdlib.formatCurrency(x, 4);
 
+const ctcAlice = accAlice.contract(backend);
+const ctcBob = accBob.contract(backend, ctcAlice.getInfo());
 console.log(`Having the creator create a testing NFT`);
 
-const theNFT = await stdlib.launchToken(accOwner, "Punk", "NFT", { supply: 1 });
+const theNFT = await stdlib.launchToken(accAlice, "Punk", "NFT", { supply: 1 });
 
 const nftId = theNFT.id;
-const numTickets = 5;
-const ticketPrice = stdlib.parseCurrency(5);
+console.log(`token id is ${nftId}`);
+const price = stdlib.parseCurrency(10);
+const numOfTic = 10;
 const deadline = 10;
 
-const params = { nftId, numTickets, ticketPrice, deadline };
+const parameters = { nftId, price, numOfTic };
+await accBob.tokenAccept(nftId);
 
-const ctcOwner = accOwner.contract(backend);
-await ctcOwner.participants.Owner({
-  settingRaffle: () => {
-    console.log(`Creator set parameters for the Raffle:`, params);
-    return params;
-  },
-  winningNum: 5,
-  startRaffle: () => {
-    startBobs();
-  },
-  seeWinner: (winner, num) => {
-    console.log(
-      `Creator saw that ${stdlib.formatAddress(winner)} won, who picked ${num}`
-    );
+const getBalance = async (who) => await stdlib.balancesOf(who, [null, nftId]);
+
+const [amtA, amtNFTA] = await getBalance(accAlice);
+const [amtB, amtNFTB] = await getBalance(accBob);
+
+console.log(`Alice balance before is ${fmt(amtA)} and ${amtNFTA} of the NFT`);
+console.log(`Bob balance before is ${fmt(amtB)} and ${amtNFTB} of the NFT`);
+
+const OUTCOME = ["Bob Won The Raffle", "Bob Picked a Wrong Number"];
+
+const common = (who) => ({
+  seeOutcome: (outcome) => {
+    console.log(`${who} saw outcome ${OUTCOME[outcome]}`);
   },
 });
+await Promise.all([
+  ctcAlice.p.A({
+    ...stdlib.hasRandom,
+    ...common("Alice"),
+    deadline: 10,
+    setRaffle: () => {
+      console.log(`Alice is setting the Raffle`, parameters);
+      return parameters;
+    },
+    raffleNum: () => {
+      const randNum = Math.floor(Math.random() * numOfTic + 1);
+      console.log(`Alice set the raffle Num ${randNum}`);
+      return randNum;
+    },
+  }),
+  ctcBob.p.B({
+    ...common("Bob"),
+    bNum: (Price, ticketNum) => {
+      const randNum = Math.floor(Math.random() * ticketNum + 1);
+      console.log(
+        `Bob paid for the ticket worth ${stdlib.formatCurrency(Price)} ${
+          stdlib.standardUnit
+        }`
+      );
+      console.log(`Bob Picked the num ${randNum}`);
+      return randNum;
+    },
+  }),
+]);
+
+const [tamtA, tamtNFTA] = await getBalance(accAlice);
+const [tamtB, tamtNFTB] = await getBalance(accBob);
+
+console.log(`Alice balance after is ${fmt(tamtA)} and ${tamtNFTA} of the NFT`);
+console.log(`Bob balance after is ${fmt(tamtB)} and ${tamtNFTB} of the NFT`);

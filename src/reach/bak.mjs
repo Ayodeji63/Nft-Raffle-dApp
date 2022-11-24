@@ -1,64 +1,69 @@
-import { loadStdlib } from "@reach-sh/stdlib";
 import * as backend from "./build/index.main.mjs";
-const stdlib = loadStdlib(process.env);
+import { loadStdlib } from "@reach-sh/stdlib";
+const stdlib = loadStdlib({ REACH_NO_WARN: "Y" });
 
 const startingBalance = stdlib.parseCurrency(100);
 
-const [accAlice, accBob] = await stdlib.newTestAccounts(2, startingBalance);
-console.log("Hello, Alice and Bob!");
+console.log(`Creating a test account for Owner`);
+const accOwner = await stdlib.newTestAccount(startingBalance);
+const ctcOwner = accOwner.contract(backend);
 
-console.log("Launching...");
-const ctcAlice = accAlice.contract(backend);
-const ctcBob = accBob.contract(backend, ctcAlice.getInfo());
+console.log(`Having the creator create a testing NFT`);
 
-console.log(`Creator is creating the testing NFT`);
-const theNFT = await stdlib.launchToken(accAlice, "Monolisa", "NFT", {
-  supply: 1,
+const theNFT = await stdlib.launchToken(accOwner, "Punk", "NFT", { supply: 1 });
+
+const nftId = theNFT.id;
+const numTickets = 5;
+const ticketPrice = stdlib.parseCurrency(5);
+const deadline = 10;
+
+const params = { nftId, numTickets, ticketPrice, deadline };
+
+const Bobs = [];
+const randNum = () => {
+  const num = Math.floor(Math.random() * 5);
+  return num;
+};
+const acc = await stdlib.newTestAccount(startingBalance);
+await acc.tokenAccept(nftId);
+const ctc = acc.contract(backend, ctcOwner.getInfo());
+
+const startBobs = async () => {
+  const runBidder = async (who) => {
+    Bobs.push([who, acc]);
+    acc.setDebugLabel(who);
+    const getBal = async () =>
+      stdlib.formatCurrency(await stdlib.balanceOf(acc));
+    console.log(`${who} picked ${randNum()}`);
+    console.log(`${who} balance before is ${await getBal()}`);
+
+    try {
+      const [Bob, ticket] = await ctc.apis.Bob.getTicket(randNum());
+      console.log(`${Bob} draw ${ticket}`);
+    } catch (e) {
+      console.log(`${who} couldn't buy ticket, because the raffle is over`);
+    }
+    console.log(`${who} balance after buying ticket ${await getBal()}`);
+  };
+
+  await runBidder("Oz");
+  await runBidder("Bob");
+  await runBidder("Claire");
+};
+
+await ctcOwner.participants.Owner({
+  ...stdlib.hasRandom,
+  settingRaffle: () => {
+    console.log(`Creator set parameters for the Raffle:`, params);
+    return params;
+  },
+  winningNum: 5,
+  startRaffle: () => {
+    startBobs();
+  },
+  seeWinner: (winner, num) => {
+    console.log(
+      `Creator saw that ${stdlib.formatAddress(winner)} won, who picked ${num}`
+    );
+  },
 });
-
-const nftParams = {
-  nftId: theNFT.id,
-  numTickets: 10,
-};
-
-const OUTCOME = ["Your number is not a mathc", "Your number is a mathces"];
-await accBob.tokenAccept(nftParams.nftId);
-
-const Shared = {
-  getNum: (numTickets) => {
-    const num = Math.floor(Math.random() * numTickets + 1);
-    return num;
-  },
-  seeOutcome: (num) => {
-    console.log(`The outcome is ${OUTCOME[num]}`);
-  },
-};
-
-console.log("Starting backends...");
-await Promise.all([
-  backend.Alice(ctcAlice, {
-    ...stdlib.hasRandom,
-    ...Shared,
-    startRaffle: () => {
-      console.log(`The Raffle information is being sent to the contract`);
-      return nftParams;
-    },
-    seeHash: (value) => {
-      console.log(`Winning number hash: ${value}`);
-    },
-    // implement Alice's interact object here
-  }),
-  backend.Bob(ctcBob, {
-    ...stdlib.hasRandom,
-    ...Shared,
-    showNum: (num) => {
-      console.log(`Your Raffle Number is ${num}`);
-    },
-    seeWinner: (num) => {
-      console.log(`The winnig number is ${num}`);
-    },
-    // implement Bob's interact object here
-  }),
-]);
-
-console.log("Goodbye, Alice and Bob!");

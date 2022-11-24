@@ -1,100 +1,101 @@
-/***
- * **NFT RAFFLE API**
- * OWNER ~
- * 1. Launch NFT
- * 2. Set A Winning Num
- * 3. Set Ticket Price
- * 4. Number of Tickets
- * 5. Deadline For Raffle
- * 6. Start Raffle
- * 7. See winner
- * 8. Transfer NFT to winner or back to Owner
- *
- *
- * APIs ~
- * 1. Pay for Ticket
- * 2. Transfer to Owner
- * 3. Get the Ticket
- * 4. See winning Number
- */
-
 "reach 0.1";
-"use strict";
+
+const [isOutcome, B_WON, B_LOSS] = makeEnum(2);
+const [
+  isWinningNum,
+  ONE,
+  TW0,
+  THREE,
+  FOUR,
+  FIVE,
+  SIX,
+  SEVEN,
+  EIGHT,
+  NINE,
+  TEN,
+] = makeEnum(10);
+
+const result = (raffleNum, bNum) => {
+  return raffleNum == bNum ? 0 : 1;
+};
+
+assert(result(THREE, FOUR) == B_LOSS);
+assert(result(FIVE, SIX) == B_LOSS);
+assert(result(SEVEN, SEVEN) == B_WON);
+assert(result(THREE, THREE) == B_WON);
+
+forall(UInt, (raffleNum) =>
+  forall(UInt, (bNum) => assert(isOutcome(result(raffleNum, bNum))))
+);
+
+forall(UInt, (num) => assert(result(num, num) == B_WON));
+
+const common = {
+  ...hasRandom,
+  seeOutcome: Fun([UInt], Null),
+  informTimeout: Fun([], Null),
+};
 
 const amt = 1;
 export const main = Reach.App(() => {
-  const Owner = Participant("Owner", {
-    ...hasRandom,
-    settingRaffle: Fun(
+  const A = Participant("A", {
+    ...common,
+    deadline: UInt,
+    setRaffle: Fun(
       [],
       Object({
         nftId: Token,
-        numTickets: UInt,
-        ticketPrice: UInt,
-        deadline: UInt,
+        price: UInt,
+        numOfTic: UInt,
       })
     ),
-    winningNum: UInt,
-    startRaffle: Fun([], Null),
-    seeWinner: Fun([UInt], Null),
+    raffleNum: Fun([], UInt),
   });
-  const Bob = API("Bob", {
-    getTicket: Fun([UInt], Tuple(Address, UInt)),
-    sRaffleNum: Fun([Address, UInt], Null),
+  const B = Participant("B", {
+    ...common,
+    bNum: Fun([UInt, UInt, Token], UInt),
   });
   init();
-  Owner.only(() => {
-    const { nftId, numTickets, ticketPrice, deadline } = declassify(
-      interact.settingRaffle()
-    );
-    const _winningNum = interact.winningNum;
-    const [_commitO, _saltO] = makeCommitment(interact, _winningNum);
-    const commitO = declassify(_commitO);
-    interact.startRaffle();
-  });
-  Owner.publish(nftId, numTickets, ticketPrice, deadline, commitO);
-  commit();
-  Owner.pay([[amt, nftId]]);
-  //   unknowable(Bob, A(_winningNum, _saltO));
 
-  const Bobs = new Map(UInt);
-  const end = lastConsensusTime() + deadline;
-  const [howMany, ticketsold, owner] = parallelReduce([0, 0, Owner])
-    .invariant(balance(nftId) == amt)
-    .invariant(balance() == 0)
-    .while(lastConsensusTime() <= end)
-    .api_(Bob.getTicket, (ticket) => {
-      return [
-        ticketPrice,
-        (ret) => {
-          Bobs[this] = ticket;
-          transfer(ticketPrice).to(Owner);
-          const who = this;
-          ret([owner, ticket]);
-          return [howMany + 1, ticketsold + 1, who];
-        },
-      ];
-    })
-    .api_(Bob.sRaffleNum, (bob, num) => {
-      return [
-        0,
-        (ret) => {
-          ret(null);
-          Owner.only(() => {
-            const saltO = declassify(_saltO);
-            const winningNum = declassify(_winningNum);
-          });
-          commit();
-          Owner.publish(saltO, winningNum);
-          checkCommitment(commitO, saltO, winningNum);
-          if (num != winningNum) {
-            delete Bobs[this];
-          }
-          return [howMany - 1, ticketsold - 1, bob];
-        },
-      ];
-    });
-  transfer(amt, nftId).to(owner);
+  const informTimeout = () => {
+    each([A, B], () => interact.informTimeout());
+  };
+  A.only(() => {
+    const deadline = declassify(interact.deadline);
+    const { nftId, price, numOfTic } = declassify(interact.setRaffle());
+  });
+  A.publish(nftId, price, numOfTic, deadline);
+  commit();
+  A.pay([[amt, nftId]]);
+  commit();
+  A.only(() => {
+    const _raffleNum = interact.raffleNum();
+    const [_commitA, _saltA] = makeCommitment(interact, _raffleNum);
+    const commitA = declassify(_commitA);
+  });
+  A.publish(commitA);
+  commit();
+  unknowable(B, A(_saltA, _raffleNum));
+  B.only(() => {
+    const bNum = declassify(interact.bNum(price, numOfTic, nftId));
+  });
+  B.publish(bNum);
+  commit();
+  B.pay(price).timeout(relativeTime(deadline), () =>
+    closeTo(A, informTimeout, [[balance(nftId), nftId]])
+  );
+  transfer(price).to(A);
+  commit();
+  A.only(() => {
+    const saltA = declassify(_saltA);
+    const raffleNum = declassify(_raffleNum);
+  });
+  A.publish(saltA, raffleNum);
+  checkCommitment(commitA, saltA, raffleNum);
+
+  const outcome = result(raffleNum, bNum);
+  transfer(amt, nftId).to(outcome == B_WON ? B : A);
+  each([A, B], () => interact.seeOutcome(outcome));
   commit();
   exit();
 });
