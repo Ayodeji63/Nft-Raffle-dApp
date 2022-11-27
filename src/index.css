@@ -99,7 +99,7 @@ p {
   @apply text-lg
 }
 .buy-ticket {
-  @apply flex w-full justify-between
+  @apply flex w-full justify-between p-5 text-[#000]
 }
 
 .buy-ticket img {
@@ -107,7 +107,7 @@ p {
 }
 
 .ticket {
-  @apply border-2 mr-5 flex flex-col items-center hover:animate-pulse cursor-pointer p-3 shadow-2xl rounded-lg
+  @apply border-2 mr-5 flex flex-col items-center hover:animate-pulse cursor-pointer p-3 shadow-2xl bg-[#fff]
 }
 
 .info {
