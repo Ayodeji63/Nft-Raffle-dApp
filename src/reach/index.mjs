@@ -56,13 +56,16 @@ await Promise.all([
   }),
   ctcBob.p.B({
     ...common("Bob"),
-    bNum: (Price, ticketNum) => {
-      const randNum = Math.floor(Math.random() * ticketNum + 1);
-      console.log(
-        `Bob paid for the ticket worth ${stdlib.formatCurrency(Price)} ${
-          stdlib.standardUnit
-        }`
-      );
+    seeParam: (price, ticketnum, nftId) => {
+      const param = {
+        price,
+        ticketnum,
+        nftId,
+      };
+      console.log(`Raffle parameters are`, param);
+    },
+    bNum: (tic) => {
+      const randNum = Math.floor(Math.random() * tic + 1);
       console.log(`Bob Picked the num ${randNum}`);
       return randNum;
     },

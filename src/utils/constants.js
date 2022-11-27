@@ -15,6 +15,7 @@ export const views = {
   ATTACHING: "Attaching",
   D_VIEW: "D_view",
   B_NUM: "b_num",
+  SEE_PARAM: "see param",
 
   //GENERIC
   TIME_OUT: "Timeout",

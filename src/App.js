@@ -13,6 +13,8 @@ import {
 import Dview, { RafflePage, SetRaffle } from "./screens/Dview.jsx";
 import Header from "./components/Header.jsx";
 import { RafflePrams } from "./screens/RafflePrams.jsx";
+import Aview, { SeeParam } from "./screens/Aview.jsx";
+import { data } from "autoprefixer";
 
 const reach = loadStdlib("ALGO");
 reach.setWalletFallback(
@@ -30,31 +32,37 @@ function App() {
   const [price, setPrice] = useState(0);
   const [numOfTic, setNumofTic] = useState(0);
   const [deadline, setDeadline] = useState(0);
-  const [fetchData, setFetchData] = useState(false);
   const [dataParam, setDataParam] = useState();
-  const [img, setImg] = useState();
-  console.log(price);
+  const [img, setImg] = useState("");
+  const [rafNum, setRafNum] = useState(0);
+  const [text, setText] = useState("");
+  const [buyTicket, setBuyTicket] = useState(false);
+  const [sTN, setSTN] = useState("");
+  const [sNId, setSNId] = useState("");
+  const [seeResult, setSeeResult] = useState({
+    raffleNum: 0,
+    bNum: 0,
+    see: false,
+  });
+
   const fetchUrl = async (x) => {
-    fetch(x)
+    fetch(
+      `https://algoindexer.testnet.algoexplorerapi.io/v2/transactions?asset-id=${x}&tx-type=acfg`
+    )
       .then((res) => res.json())
       .then(async (data) => {
         if (data) {
           const param =
             data.transactions[0][Object.keys(data.transactions[0])[0]].params;
           setImg(param.url.slice(7));
+          setDataParam(param);
+          console.log(data);
         }
       })
       .catch((e) => {
         console.log(e);
       });
-    setFetchData(true);
   };
-
-  // useEffect(() => {
-  //   fetchUrl(
-  //     `https://algoindexer.testnet.algoexplorerapi.io/v2/transactions?asset-id=${145069460}&tx-type=acfg`
-  //   );
-  // }, [fetchData]);
 
   const reachFunctions = {
     connect: async (secret, mnemonic = false) => {
@@ -84,9 +92,13 @@ function App() {
     },
 
     deploy: async () => {
+      console.log(price);
+
       const contract = account.contract(backend);
-      const deadline = { ETH: 10, ALGO: 10, CFX: 1000 }[reach.connector];
+      const deadline = { ETH: 10, ALGO: 100, CFX: 1000 }[reach.connector];
       A.deadline = deadline;
+      A.price = reach.parseCurrency(price);
+
       backend.A(contract, A);
       setView(views.DEPLOYING);
       const ctcInfo = JSON.stringify(await contract.getInfo(), null, 2);
@@ -94,30 +106,48 @@ function App() {
       setView(views.WAIT_FOR_ATTACHER);
     },
 
-    attach: (contractInfo) => {
+    attach: async (contractInfo) => {
+      console.log(sNId);
       const contract = account.contract(backend, JSON.parse(contractInfo));
+
       backend.B(contract, B);
       setView(views.ATTACHING);
     },
   };
 
   //Participant Objects
+  const OUTCOME = ["Player Won The Raffle", "Player Picked a Wrong Number"];
   const Common = {
     random: () => reach.hasRandom.random(),
     test: () => setView(views.TEST_VIEW),
+    seeOutcome: (num, raffleNum, bNum) => {
+      setText(OUTCOME[num]);
+      setSeeResult({
+        raffleNum: `${raffleNum}`,
+        bNum: `${bNum}`,
+        see: true,
+        text: `${OUTCOME[num]}`,
+      });
+      setBuyTicket(false);
+      console.log(`${OUTCOME[num]}`);
+    },
   };
 
-  const params = {
+  const param = {
     nftId,
-    price,
     numOfTic,
   };
 
   const A = {
     ...Common,
     setRaffle: () => {
-      console.log(`this are params`, params);
-      return params;
+      // setParam({
+      //   nftId: nftId,
+      //   price: reach.parseCurrency(price),
+      //   numOfTic: numOfTic,
+      // });
+      console.log(`this are params`, param);
+      return param;
     },
     raffleNum: async () => {
       setView(views.RAFFLE_NUM);
@@ -125,6 +155,7 @@ function App() {
       return new Promise((resolve, reject) => {
         setResolver({
           resolve: (num) => {
+            console.log(`Alice set ${num}`);
             resolve(num);
           },
         });
@@ -134,13 +165,29 @@ function App() {
 
   const B = {
     ...Common,
-    bNum: async (price, ticketNum, nftId) => {
-      await fetchUrl(nftId);
+    seeParam: async (price, ticketNum, nftId) => {
       setView(views.B_NUM);
+      await fetchUrl(nftId);
+      setPrice(price);
+      setSTN(ticketNum);
+      setSNId(nftId);
+      await account.tokenAccept(nftId);
       console.log(`${price}, ${ticketNum}, ${nftId}`);
       return new Promise((resolve, reject) => {
         setResolver({
+          resolve: async () => {
+            resolve();
+          },
+        });
+      });
+    },
+    bNum: async () => {
+      setBuyTicket(true);
+      await fetchUrl(nftId);
+      return new Promise((resolve, reject) => {
+        setResolver({
           resolve: (num) => {
+            console.log(`Alice set ${num}`);
             resolve(num);
           },
         });
@@ -150,7 +197,6 @@ function App() {
   console.log(nftId);
   return (
     <div className="App">
-      {/* {img && <img src={`https://${img}.ipfs.dweb.link/`} />} */}
       {view === views.CONNECT_ACCOUNT && (
         <ConnectAccount connect={reachFunctions.connect} />
       )}
@@ -171,6 +217,7 @@ function App() {
               setNumOFTic={setNumofTic}
               deadline={deadline}
               setDeadline={setDeadline}
+              reach={reach}
             />
           )}
           {view === views.D_VIEW && <Dview />}
@@ -181,11 +228,35 @@ function App() {
           )}
 
           {view == views.RAFFLE_NUM && (
-            <RafflePage raffleNum={resolver.resolve} />
+            <RafflePage
+              src={img}
+              raffleNum={resolver.resolve}
+              rafNum={rafNum}
+              setRafNum={setRafNum}
+              nftId={nftId}
+              numOfTic={numOfTic}
+              price={price}
+              data={dataParam}
+              seeResult={seeResult}
+            />
           )}
 
           {view === views.WAIT_FOR_ATTACHER && (
             <WaitForAttacher info={contractInfo} />
+          )}
+
+          {view == views.B_NUM && resolver && (
+            <Aview
+              text={text}
+              buyTicket={buyTicket}
+              src={img}
+              submit={resolver.resolve}
+              price={fmt(price)}
+              data={dataParam}
+              numOfTic={sTN}
+              nftId={sNId}
+              seeResult={seeResult}
+            />
           )}
         </div>
       )}

@@ -32,7 +32,7 @@ forall(UInt, (num) => assert(result(num, num) == B_WON));
 
 const common = {
   ...hasRandom,
-  seeOutcome: Fun([UInt], Null),
+  seeOutcome: Fun([UInt, UInt, UInt], Null),
   informTimeout: Fun([], Null),
 };
 
@@ -41,11 +41,11 @@ export const main = Reach.App(() => {
   const A = Participant("A", {
     ...common,
     deadline: UInt,
+    price: UInt,
     setRaffle: Fun(
       [],
       Object({
         nftId: Token,
-        price: UInt,
         numOfTic: UInt,
       })
     ),
@@ -53,39 +53,54 @@ export const main = Reach.App(() => {
   });
   const B = Participant("B", {
     ...common,
-    bNum: Fun([UInt, UInt, Token], UInt),
+    seeParam: Fun([UInt, UInt, Token], Null),
+    bNum: Fun([UInt], UInt),
   });
   init();
 
   const informTimeout = () => {
     each([A, B], () => interact.informTimeout());
   };
+
   A.only(() => {
     const deadline = declassify(interact.deadline);
-    const { nftId, price, numOfTic } = declassify(interact.setRaffle());
+    const price = declassify(interact.price);
+    const { nftId, numOfTic } = declassify(interact.setRaffle());
   });
   A.publish(nftId, price, numOfTic, deadline);
   commit();
+
   A.pay([[amt, nftId]]);
   commit();
+
+  B.only(() => {
+    const seeParam = declassify(interact.seeParam(price, numOfTic, nftId));
+  });
+  B.publish(seeParam);
+  commit();
+
   A.only(() => {
     const _raffleNum = interact.raffleNum();
     const [_commitA, _saltA] = makeCommitment(interact, _raffleNum);
     const commitA = declassify(_commitA);
   });
-  A.publish(commitA);
+  A.publish(commitA).timeout(relativeTime(deadline), () =>
+    closeTo(A, informTimeout, [[balance(nftId), nftId]])
+  );
   commit();
+  //
   unknowable(B, A(_saltA, _raffleNum));
+
   B.only(() => {
-    const bNum = declassify(interact.bNum(price, numOfTic, nftId));
+    const bNum = declassify(interact.bNum(numOfTic));
   });
   B.publish(bNum);
   commit();
   B.pay(price).timeout(relativeTime(deadline), () =>
     closeTo(A, informTimeout, [[balance(nftId), nftId]])
   );
-  transfer(price).to(A);
   commit();
+
   A.only(() => {
     const saltA = declassify(_saltA);
     const raffleNum = declassify(_raffleNum);
@@ -95,7 +110,8 @@ export const main = Reach.App(() => {
 
   const outcome = result(raffleNum, bNum);
   transfer(amt, nftId).to(outcome == B_WON ? B : A);
-  each([A, B], () => interact.seeOutcome(outcome));
+  transfer(price).to(A);
+  each([A, B], () => interact.seeOutcome(outcome, raffleNum, bNum));
   commit();
   exit();
 });

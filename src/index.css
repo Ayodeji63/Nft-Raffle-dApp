@@ -11,7 +11,7 @@
   box-sizing: border-box;
 }
 body {
-@apply bg-[#05030e] text-cyan-50 w-screen h-screen flex justify-center items-center flex-col overflow-hidden
+@apply bg-[#05030e] text-cyan-50 w-screen h-screen flex justify-center items-center flex-col overflow-auto
 
 }
 
@@ -21,8 +21,12 @@ body {
   font-weight: 700;
 }
 
+.App {
+  @apply h-full w-full justify-center flex flex-col items-center
+}
+
 .section {
-  @apply w-full h-full flex items-center flex-col justify-center
+  @apply w-full h-full flex items-center flex-col justify-center text-left
 }
 
 .button {
@@ -33,7 +37,7 @@ body {
 }
 
 .header {
-  @apply w-full h-16 flex items-center justify-around p-5 drop-shadow-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500
+  @apply w-full h-16 flex items-center justify-around p-5 drop-shadow-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 fixed
 }
 
 input {
@@ -49,11 +53,11 @@ input {
   @apply flex flex-col w-full items-center mt-[5rem]
 }
 .form {
-  @apply  flex border-2 h-fit pr-10 pl-10 pt-4 items-center rounded-2xl
+  @apply  flex border-2 h-fit w-fit pr-10 pl-10 pt-4 items-center rounded-2xl border-slate-700 mt-16 ml-16
 }
 
 .sect {
-  @apply m-5 flex-col flex
+  @apply m-5 flex-col flex 
 }
 
 .img {
@@ -67,3 +71,47 @@ input {
 label {
   @apply mb-2
 }
+
+img {
+  @apply h-[200px]
+}
+
+.page {
+  @apply flex border-2 border-slate-700 rounded-2xl p-5 justify-center items-center mt-9 lg:w-[50%] w-[80%]
+}
+
+.img-div {
+  @apply flex flex-col  items-center
+}
+
+.imgName {
+  @apply text-pink-500 italic
+}
+
+span {
+  @apply text-[#d000ff] italic 
+}
+
+h1 {
+  @apply text-xl
+}
+p {
+  @apply text-lg
+}
+.buy-ticket {
+  @apply flex w-full justify-between
+}
+
+.buy-ticket img {
+  @apply h-[50px]
+}
+
+.ticket {
+  @apply border-2 mr-5 flex flex-col items-center hover:animate-pulse cursor-pointer p-3 shadow-2xl rounded-lg
+}
+
+.info {
+  @apply flex mb-10
+}
+
+
